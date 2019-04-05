@@ -17,6 +17,9 @@ Optional properties:
 - self-powered: Set this property if the usb device that has its own power
   source.
 
+Optional properties for usb-a-connector or usb-b-connector:
+- vbus-supply: phandle to a regulator supplying the VBUS voltage.
+
 Optional properties for usb-c-connector:
 - power-role: should be one of "source", "sink" or "dual"(DRP) if typec
   connector has power support.
