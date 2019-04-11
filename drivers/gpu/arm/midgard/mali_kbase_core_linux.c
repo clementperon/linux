@@ -3235,12 +3235,18 @@ static int power_control_init(struct platform_device *pdev)
 			"Continuing without Mali regulator control\n");
 		/* Allow probe to continue without regulator */
 	}
+	err = regulator_enable(kbdev->regulator);
+	if (err) {
+		dev_err(kbdev->dev, "Failed to enable regulator\n");
+		return err;
+	}
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
 
 	kbdev->mali_rst = of_reset_control_get_by_index(kbdev->dev->of_node, 0);
 	if (IS_ERR(kbdev->mali_rst)) {
 		dev_err(kbdev->dev, "Couldn't get mali reset line\n");
 		err = PTR_ERR(kbdev->mali_rst);
+		kbdev->mali_rst = NULL;
 		goto fail;
 	}
 
@@ -3248,6 +3254,7 @@ static int power_control_init(struct platform_device *pdev)
 	if (IS_ERR(kbdev->bus_clk)) {
 		dev_err(kbdev->dev, "Couldn't get the mali bus clock\n");
 		err = PTR_ERR(kbdev->bus_clk);
+		kbdev->bus_clk = NULL;
 		goto fail;
 	}
 
