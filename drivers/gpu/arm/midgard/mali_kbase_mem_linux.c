@@ -1730,8 +1730,12 @@ KBASE_EXPORT_TEST_API(kbase_cpu_vm_close);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0))
 static int kbase_cpu_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0))
 static int kbase_cpu_vm_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+#else
+static vm_fault_t kbase_cpu_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 #endif
