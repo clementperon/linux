@@ -6197,10 +6197,10 @@ sub process {
 		exit(0);
 	}
 
-	if (!$is_patch && $file !~ /cover-letter\.patch$/) {
-		ERROR("NOT_UNIFIED_DIFF",
-		      "Does not appear to be a unified-diff format patch\n");
-	}
+	#if (!$is_patch && $file !~ /cover-letter\.patch$/) {
+	#	ERROR("NOT_UNIFIED_DIFF",
+	#	      "Does not appear to be a unified-diff format patch\n");
+	#}
 	if ($is_patch && $has_commit_log && $chk_signoff && $signoff == 0) {
 		ERROR("MISSING_SIGN_OFF",
 		      "Missing Signed-off-by: line(s)\n");

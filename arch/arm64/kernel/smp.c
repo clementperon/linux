@@ -261,8 +261,8 @@ asmlinkage void secondary_start_kernel(void)
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
-	pr_info("CPU%u: Booted secondary processor [%08x]\n",
-					 cpu, read_cpuid_id());
+	//pr_info("CPU%u: Booted secondary processor [%08x]\n",
+	//				 cpu, read_cpuid_id());
 	update_cpu_boot_status(CPU_BOOT_SUCCESS);
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
@@ -822,6 +822,8 @@ static void ipi_cpu_stop(unsigned int cpu)
 	set_cpu_online(cpu, false);
 
 	local_irq_disable();
+
+	flush_cache_all();
 
 	while (1)
 		cpu_relax();

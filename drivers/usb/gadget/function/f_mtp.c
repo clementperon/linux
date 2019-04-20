@@ -37,6 +37,9 @@
 #include <linux/usb/f_mtp.h>
 #include <linux/configfs.h>
 #include <linux/usb/composite.h>
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
 
 #include "configfs.h"
 
@@ -575,6 +578,15 @@ requeue_req:
 	/* queue a request */
 	req = dev->rx_req[0];
 	req->length = len;
+
+	/*
+	 * Do not use dma during MTP protocol streaming (not data),
+	 * otherwise it will cause dma hang if the packet length
+	 * is shorter than ep->maxpacket.
+	 */
+#if IS_ENABLED(CONFIG_USB_SUNXI_UDC0)
+	req->dma_flag = 0;
+#endif
 	dev->rx_done = 0;
 	ret = usb_ep_queue(dev->ep_out, req, GFP_KERNEL);
 	if (ret < 0) {
@@ -680,6 +692,15 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 		}
 
 		req->length = xfer;
+
+		 /*
+		  * Do not use dma during MTP protocol streaming (not data),
+		  * otherwise it will cause dma hang if the packet length
+		  * is shorter than ep->maxpacket.
+		  */
+#if IS_ENABLED(CONFIG_USB_SUNXI_UDC0)
+		req->dma_flag = 0;
+#endif
 		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
 		if (ret < 0) {
 			DBG(cdev, "mtp_write: xfer error %d\n", ret);
@@ -793,6 +814,11 @@ static void send_file_work(struct work_struct *data)
 		hdr_size = 0;
 
 		req->length = xfer;
+
+		/* Use inner dma to transport. */
+#if IS_ENABLED(CONFIG_USB_SUNXI_UDC0)
+		req->dma_flag = 1;
+#endif
 		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
 		if (ret < 0) {
 			DBG(cdev, "send_file_work: xfer error %d\n", ret);
@@ -825,7 +851,7 @@ static void receive_file_work(struct work_struct *data)
 	struct usb_request *read_req = NULL, *write_req = NULL;
 	struct file *filp;
 	loff_t offset;
-	int64_t count, len;
+	int64_t count;
 	int ret, cur_buf = 0;
 	int r = 0;
 
@@ -843,10 +869,14 @@ static void receive_file_work(struct work_struct *data)
 			read_req = dev->rx_req[cur_buf];
 			cur_buf = (cur_buf + 1) % RX_REQ_MAX;
 
-			len = usb_ep_align_maybe(cdev->gadget, dev->ep_out, count);
-			if (len > MTP_BULK_BUFFER_SIZE)
-				len = MTP_BULK_BUFFER_SIZE;
-			read_req->length = len;
+			read_req->length = (count > MTP_BULK_BUFFER_SIZE
+					? MTP_BULK_BUFFER_SIZE : count);
+
+			/* Use inner dma to transport. */
+#if IS_ENABLED(CONFIG_USB_SUNXI_UDC0)
+			if (count != 0xFFFFFFFF)
+				read_req->dma_flag = 1;
+#endif
 			dev->rx_done = 0;
 			ret = usb_ep_queue(dev->ep_out, read_req, GFP_KERNEL);
 			if (ret < 0) {
@@ -898,6 +928,10 @@ static void receive_file_work(struct work_struct *data)
 			}
 
 			write_req = read_req;
+			/* disable dma_flag when a transfer finished. */
+#if IS_ENABLED(CONFIG_USB_SUNXI_UDC0)
+			read_req->dma_flag = 0;
+#endif
 			read_req = NULL;
 		}
 	}
@@ -1042,6 +1076,90 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+struct mtp_file_range32 {
+	/* file descriptor for file to transfer */
+	int fd;
+	/* offset in file for start of transfer */
+	compat_loff_t offset;
+	/* number of bytes to transfer */
+	int64_t length;
+	/* MTP command ID for data header,
+	 * used only for MTP_SEND_FILE_WITH_HEADER
+	 */
+	uint16_t command;
+	/* MTP transaction ID for data header,
+	 * used only for MTP_SEND_FILE_WITH_HEADER
+	 */
+	uint32_t transaction_id;
+};
+
+struct mtp_event32 {
+	/* size of the event */
+	compat_size_t length;
+	/* event data to send */
+	compat_caddr_t data;
+};
+
+static long mtp_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	__u32 data;
+	int err;
+
+	switch (cmd) {
+	case MTP_SEND_FILE:
+	case MTP_RECEIVE_FILE:
+	case MTP_SEND_FILE_WITH_HEADER:
+	{
+		struct mtp_file_range	__user *mfr;
+		struct mtp_file_range32	__user *mfr32;
+
+		mfr = compat_alloc_user_space(sizeof(*mfr));
+		mfr32 = compat_ptr(arg);
+
+		if (copy_in_user(&mfr->fd, &mfr32->fd, sizeof(int)) ||
+			copy_in_user(&mfr->length, &mfr32->length, sizeof(int64_t)) ||
+			copy_in_user(&mfr->command, &mfr32->command, sizeof(uint16_t)) ||
+			copy_in_user(&mfr->transaction_id, &mfr32->transaction_id, sizeof(uint32_t))) {
+			return -EFAULT;
+		}
+
+		if (get_user(data, &mfr32->offset) ||
+			put_user(data, &mfr->offset)) {
+			return -EFAULT;
+		}
+
+		err = mtp_ioctl(file, cmd, (unsigned long)mfr);
+		break;
+	}
+	case MTP_SEND_EVENT:
+	{
+		struct mtp_event __user *event;
+		struct mtp_event32 __user *event32;
+
+		event = compat_alloc_user_space(sizeof(*event));
+		event32 = compat_ptr(arg);
+
+		if (get_user(data, &event32->length) ||
+			put_user(data, &event->length) ||
+			get_user(data, &event32->data) ||
+			put_user(compat_ptr(data), &event->data)) {
+			return -EFAULT;
+		}
+
+		err = mtp_ioctl(file, cmd, (unsigned long)event);
+		break;
+
+	}
+	default:
+		break;
+	}
+
+	return err;
+
+}
+#endif
+
 static int mtp_open(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "mtp_open\n");
@@ -1070,6 +1188,9 @@ static const struct file_operations mtp_fops = {
 	.read = mtp_read,
 	.write = mtp_write,
 	.unlocked_ioctl = mtp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = mtp_compat_ioctl,
+#endif
 	.open = mtp_open,
 	.release = mtp_release,
 };

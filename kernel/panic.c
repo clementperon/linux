@@ -24,6 +24,10 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/console.h>
+#include <linux/cpu.h>
+#include <linux/cpumask.h>
+#include <linux/arisc/arisc.h>
+#include <asm/cacheflush.h>
 #include <linux/bug.h>
 
 #define PANIC_TIMER_STEP 100
@@ -285,6 +289,26 @@ void panic(const char *fmt, ...)
 	}
 #endif
 	pr_emerg("---[ end Kernel panic - not syncing: %s\n", buf);
+
+#if defined(CONFIG_SUNXI_DUMP)
+	flush_cache_all();
+	{
+		unsigned int i;
+
+		for (i = 0; i < num_possible_cpus(); i++) {
+			if (i == smp_processor_id())
+				continue;
+
+			while (1) {
+				if (!cpu_online(i))
+					break;
+				mdelay(10);
+			}
+		}
+		pr_emerg("crashdump enter\n");
+		arisc_set_crashdump_mode();
+	}
+#endif
 	local_irq_enable();
 	for (i = 0; ; i += PANIC_TIMER_STEP) {
 		touch_softlockup_watchdog();

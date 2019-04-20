@@ -1140,8 +1140,7 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 
 	flags = msg->msg_flags;
-	if (unlikely(flags & MSG_FASTOPEN || inet_sk(sk)->defer_connect) &&
-	    !tp->repair) {
+	if (unlikely(flags & MSG_FASTOPEN || inet_sk(sk)->defer_connect)) {
 		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn, size);
 		if (err == -EINPROGRESS && copied_syn > 0)
 			goto out;
@@ -2323,7 +2322,6 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->snd_cwnd_cnt = 0;
 	tp->window_clamp = 0;
 	tcp_set_ca_state(sk, TCP_CA_Open);
-	tp->is_sack_reneg = 0;
 	tcp_clear_retrans(tp);
 	inet_csk_delack_init(sk);
 	/* Initialize rcv_mss to TCP_MIN_MSS to avoid division by 0

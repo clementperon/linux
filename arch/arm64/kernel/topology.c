@@ -227,7 +227,7 @@ const struct sched_group_energy * const cpu_cluster_energy(int cpu)
 	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL1];
 
 	if (!sge) {
-		pr_warn("Invalid sched_group_energy for Cluster%d\n", cpu);
+		//pr_warn("Invalid sched_group_energy for Cluster%d\n", cpu);
 		return NULL;
 	}
 
@@ -240,7 +240,7 @@ const struct sched_group_energy * const cpu_core_energy(int cpu)
 	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL0];
 
 	if (!sge) {
-		pr_warn("Invalid sched_group_energy for CPU%d\n", cpu);
+		//pr_warn("Invalid sched_group_energy for CPU%d\n", cpu);
 		return NULL;
 	}
 
@@ -282,8 +282,8 @@ static void update_cpu_capacity(unsigned int cpu)
 
 	set_capacity_scale(cpu, capacity);
 
-	pr_info("CPU%d: update cpu_capacity %lu\n",
-		cpu, arch_scale_cpu_capacity(NULL, cpu));
+	//pr_info("CPU%d: update cpu_capacity %lu\n",
+	//	cpu, arch_scale_cpu_capacity(NULL, cpu));
 }
 
 static void update_siblings_masks(unsigned int cpuid)

@@ -1900,6 +1900,19 @@ unknown:
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
 
+#if defined(CONFIG_USB_G_WEBCAM) || defined(CONFIG_USB_CONFIGFS_F_UVC)
+		/* getcur request about request error code of webcam. */
+		if ((ctrl->bRequest == 0x81) && (ctrl->bRequestType == 0xa1)
+		    && (ctrl->wLength == 0x1) && (ctrl->wValue == 0x200)
+		    && (ctrl->wIndex == 0x0)) {
+			u8 ret_data = 0x06;
+
+			value = min_t(u16, w_length, (u16) 1);
+			memcpy(req->buf, &ret_data, value);
+			break;
+		}
+#endif
+
 		/* functions always handle their interfaces and endpoints...
 		 * punt other recipients (other, WUSB, ...) to the current
 		 * configuration code.
@@ -2160,6 +2173,7 @@ int composite_os_desc_req_prepare(struct usb_composite_dev *cdev,
 	if (!cdev->os_desc_req->buf) {
 		ret = -ENOMEM;
 		usb_ep_free_request(ep0, cdev->os_desc_req);
+		cdev->os_desc_req = NULL;
 		goto end;
 	}
 	cdev->os_desc_req->context = cdev;
@@ -2182,6 +2196,7 @@ void composite_dev_cleanup(struct usb_composite_dev *cdev)
 
 		kfree(cdev->os_desc_req->buf);
 		usb_ep_free_request(cdev->gadget->ep0, cdev->os_desc_req);
+		cdev->os_desc_req = NULL;
 	}
 	if (cdev->req) {
 		if (cdev->setup_pending)
@@ -2189,6 +2204,7 @@ void composite_dev_cleanup(struct usb_composite_dev *cdev)
 
 		kfree(cdev->req->buf);
 		usb_ep_free_request(cdev->gadget->ep0, cdev->req);
+		cdev->req = NULL;
 	}
 	cdev->next_string_id = 0;
 	device_remove_file(&cdev->gadget->dev, &dev_attr_suspended);

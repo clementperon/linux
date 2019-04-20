@@ -35,6 +35,7 @@ static int derive_key_aes(u8 deriving_key[FS_AES_128_ECB_KEY_SIZE],
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
 	struct crypto_skcipher *tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
+	char *buf;
 
 	if (IS_ERR(tfm)) {
 		res = PTR_ERR(tfm);
@@ -54,8 +55,17 @@ static int derive_key_aes(u8 deriving_key[FS_AES_128_ECB_KEY_SIZE],
 					FS_AES_128_ECB_KEY_SIZE);
 	if (res < 0)
 		goto out;
+	/*the source buf address is not word align,so malloc to ss*/
+	buf = kmalloc(FS_MAX_KEY_SIZE, GFP_NOFS);
+	if (buf == NULL) {
+		pr_err("kmalloc fail\n");
+		res = -EINVAL;
+		goto out;
+	}
+	memcpy(buf, (void *)source_key->raw, source_key->size);
 
-	sg_init_one(&src_sg, source_key->raw, source_key->size);
+	sg_init_one(&src_sg, buf, source_key->size);
+	/*sg_init_one(&src_sg, source_key->raw, source_key->size);*/
 	sg_init_one(&dst_sg, derived_raw_key, source_key->size);
 	skcipher_request_set_crypt(req, &src_sg, &dst_sg, source_key->size,
 				   NULL);
@@ -63,6 +73,8 @@ static int derive_key_aes(u8 deriving_key[FS_AES_128_ECB_KEY_SIZE],
 out:
 	skcipher_request_free(req);
 	crypto_free_skcipher(tfm);
+	if (buf != NULL)
+		kzfree(buf);
 	return res;
 }
 
@@ -115,6 +127,7 @@ static int validate_user_key(struct fscrypt_info *crypt_info,
 		res = -ENOKEY;
 		goto out;
 	}
+
 	res = derive_key_aes(ctx->nonce, master_key, raw_key);
 out:
 	up_read(&keyring_key->sem);

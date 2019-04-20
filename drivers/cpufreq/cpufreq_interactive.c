@@ -471,6 +471,7 @@ static void cpufreq_interactive_update(struct interactive_cpu *icpu)
 	slack_timer_resched(icpu, smp_processor_id(), true);
 }
 
+#ifndef CONFIG_ARCH_SUN8IW15P1
 static void cpufreq_interactive_idle_end(void)
 {
 	struct interactive_cpu *icpu = &per_cpu(interactive_cpu,
@@ -490,6 +491,7 @@ static void cpufreq_interactive_idle_end(void)
 
 	up_read(&icpu->enable_sem);
 }
+#endif
 
 static void cpufreq_interactive_get_policy_info(struct cpufreq_policy *policy,
 						unsigned int *pmax_freq,
@@ -1014,9 +1016,10 @@ static struct kobj_type interactive_tunables_ktype = {
 static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 					     unsigned long val, void *data)
 {
+#ifndef CONFIG_ARCH_SUN8IW15P1
 	if (val == IDLE_END)
 		cpufreq_interactive_idle_end();
-
+#endif
 	return 0;
 }
 

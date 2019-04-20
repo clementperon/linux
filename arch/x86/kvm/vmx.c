@@ -51,7 +51,7 @@
 #include <asm/apic.h>
 #include <asm/irq_remapping.h>
 #include <asm/microcode.h>
-#include <asm/spec-ctrl.h>
+#include <asm/nospec-branch.h>
 
 #include "trace.h"
 #include "pmu.h"
@@ -3144,7 +3144,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 
 		/* The STIBP bit doesn't fault even if it's not advertised */
-		if (data & ~(SPEC_CTRL_IBRS | SPEC_CTRL_STIBP | SPEC_CTRL_SSBD))
+		if (data & ~(SPEC_CTRL_IBRS | SPEC_CTRL_STIBP | SPEC_CTRL_RDS))
 			return 1;
 
 		vmx->spec_ctrl = data;
@@ -8689,7 +8689,7 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_X86_64
 			[sp]"=&r"(tmp),
 #endif
-			ASM_CALL_CONSTRAINT
+ 			"+r"(__sp)
 			:
 			THUNK_TARGET(entry),
 			[ss]"i"(__KERNEL_DS),
@@ -8699,21 +8699,9 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 }
 STACK_FRAME_NON_STANDARD(vmx_handle_external_intr);
 
-static bool vmx_has_emulated_msr(int index)
+static bool vmx_has_high_real_mode_segbase(void)
 {
-	switch (index) {
-	case MSR_IA32_SMBASE:
-		/*
-		 * We cannot do SMM unless we can run the guest in big
-		 * real mode.
-		 */
-		return enable_unrestricted_guest || emulate_invalid_guest_state;
-	case MSR_AMD64_VIRT_SPEC_CTRL:
-		/* This is AMD only.  */
-		return false;
-	default:
-		return true;
-	}
+	return enable_unrestricted_guest || emulate_invalid_guest_state;
 }
 
 static bool vmx_mpx_supported(void)
@@ -8936,10 +8924,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	 * is no need to worry about the conditional branch over the wrmsr
 	 * being speculatively taken.
 	 */
-	x86_spec_ctrl_set_guest(vmx->spec_ctrl, 0);
+	if (vmx->spec_ctrl)
+		native_wrmsrl(MSR_IA32_SPEC_CTRL, vmx->spec_ctrl);
 
 	vmx->__launched = vmx->loaded_vmcs->launched;
-
 	asm(
 		/* Store host registers */
 		"push %%" _ASM_DX "; push %%" _ASM_BP ";"
@@ -9075,7 +9063,8 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(!msr_write_intercepted(vcpu, MSR_IA32_SPEC_CTRL)))
 		vmx->spec_ctrl = native_read_msr(MSR_IA32_SPEC_CTRL);
 
-	x86_spec_ctrl_restore_host(vmx->spec_ctrl, 0);
+	if (vmx->spec_ctrl)
+		native_wrmsrl(MSR_IA32_SPEC_CTRL, 0);
 
 	/* Eliminate branch target predictions from guest mode */
 	vmexit_fill_RSB();
@@ -11364,7 +11353,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.hardware_enable = hardware_enable,
 	.hardware_disable = hardware_disable,
 	.cpu_has_accelerated_tpr = report_flexpriority,
-	.has_emulated_msr = vmx_has_emulated_msr,
+	.cpu_has_high_real_mode_segbase = vmx_has_high_real_mode_segbase,
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,

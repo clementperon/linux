@@ -22,6 +22,7 @@
 
 #include "dtc.h"
 #include "srcpos.h"
+#include "updatetree.h"
 
 /*
  * Command line options
@@ -31,6 +32,7 @@ int reservenum;		/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
 int phandle_format = PHANDLE_BOTH;	/* Use linux,phandle or phandle properties */
+
 
 static void fill_fullpaths(struct node *tree, const char *prefix)
 {
@@ -53,7 +55,7 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 #define FDT_VERSION(version)	_FDT_VERSION(version)
 #define _FDT_VERSION(version)	#version
 static const char usage_synopsis[] = "dtc [options] <input file>";
-static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:fb:i:H:sW:E:hv";
+static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:fb:i:H:sW:E:F:hv";
 static struct option const usage_long_opts[] = {
 	{"quiet",            no_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
@@ -71,6 +73,7 @@ static struct option const usage_long_opts[] = {
 	{"phandle",           a_argument, NULL, 'H'},
 	{"warning",           a_argument, NULL, 'W'},
 	{"error",             a_argument, NULL, 'E'},
+	{"fexname",           a_argument, NULL, 'F'},
 	{"help",             no_argument, NULL, 'h'},
 	{"version",          no_argument, NULL, 'v'},
 	{NULL,               no_argument, NULL, 0x0},
@@ -158,6 +161,7 @@ int main(int argc, char *argv[])
 	const char *outform = NULL;
 	const char *outname = "-";
 	const char *depname = NULL;
+	const char *fexname = NULL;
 	bool force = false, sort = false;
 	const char *arg;
 	int opt;
@@ -234,6 +238,10 @@ int main(int argc, char *argv[])
 			parse_checks_option(false, true, optarg);
 			break;
 
+		case 'F':
+			fexname = optarg;
+			break;
+
 		case 'h':
 			usage(NULL);
 		default:
@@ -301,6 +309,19 @@ int main(int argc, char *argv[])
 		if (! outf)
 			die("Couldn't open output file %s: %s\n",
 			    outname, strerror(errno));
+	}
+
+	/* add by huangshr.
+	 * here we parser script file and
+	 * insert mainkey info into bi struct.
+	 */
+	if (fexname) {
+		dt_update_source(fexname, outf, bi);
+
+		/* recheck bi struct */
+		fill_fullpaths(bi->dt, "");
+		dirty_checks();
+		process_checks(force, bi);
 	}
 
 	if (streq(outform, "dts")) {

@@ -531,6 +531,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (IS_DIRSYNC(dir))
 		f2fs_sync_fs(sbi->sb, 1);
+
 fail:
 	trace_f2fs_unlink_exit(inode, err);
 	return err;
@@ -728,6 +729,9 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	int err;
+
+	if (unlikely(f2fs_cp_error(sbi)))
+		return -EIO;
 
 	err = dquot_initialize(dir);
 	if (err)
@@ -1025,6 +1029,12 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	err = dquot_initialize(new_dir);
 	if (err)
 		goto out;
+
+	if (new_inode) {
+		err = dquot_initialize(new_inode);
+		if (err)
+			goto out;
+	}
 
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_entry) {

@@ -1022,12 +1022,37 @@ static int mmc_switch_status(struct mmc_card *card)
 {
 	u32 status;
 	int err;
+	unsigned long timeout = 0;
 
+	timeout = jiffies + msecs_to_jiffies(MMC_OPS_TIMEOUT_MS);
+	do {
+		err = mmc_send_status(card, &status);
+		if (err)
+			return err;
+
+		if (status & 0xFDFFA000)
+			pr_warn("%s: unexpected status %#x after switch\n",
+				mmc_hostname(card->host), status);
+
+		if (status & R1_SWITCH_ERROR)
+			return -EBADMSG;
+
+		/* Timeout if the device never leaves the program state. */
+		if (time_after(jiffies, timeout)) {
+			pr_err("%s: Card stuck in programming state! %s\n",
+				mmc_hostname(card->host), __func__);
+			return -ETIMEDOUT;
+		}
+	} while (!(status & R1_READY_FOR_DATA) ||
+		 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
+
+/*
 	err = mmc_send_status(card, &status);
 	if (err)
 		return err;
-
+*/
 	return mmc_switch_status_error(card->host, status);
+
 }
 
 /*
@@ -1675,7 +1700,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Enable power_off_notification byte in the ext_csd register
 	 */
-	if (card->ext_csd.rev >= 6) {
+	if ((host->caps2 & MMC_CAP2_FULL_PWR_CYCLE) &&
+	    card->ext_csd.rev >= 6) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_POWER_OFF_NOTIFICATION,
 				 EXT_CSD_POWER_ON,
@@ -1743,7 +1769,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * the existence of cache and it can be turned on.
 	 */
 	if (!mmc_card_broken_hpi(card) &&
-	    card->ext_csd.cache_size > 0) {
+	    (host->caps2 & MMC_CAP2_CACHE_CTRL) && card->ext_csd.cache_size > 0) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_CACHE_CTRL, 1,
 				card->ext_csd.generic_cmd6_time);
@@ -1798,7 +1824,7 @@ err:
 	return err;
 }
 
-static int mmc_can_sleep(struct mmc_card *card)
+int mmc_can_sleep(struct mmc_card *card)
 {
 	return (card && card->ext_csd.rev >= 3);
 }

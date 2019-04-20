@@ -16,6 +16,11 @@
  */
 #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
 
+/* Clang doesn't have a way to turn it off per-function, yet. */
+#ifdef __noretpoline
+#undef __noretpoline
+#endif
+
 #ifdef CONFIG_LTO_CLANG
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 #define __norecordmcount \
@@ -31,9 +36,4 @@
 /* emulate gcc's __SANITIZE_ADDRESS__ flag */
 #if __has_feature(address_sanitizer)
 #define __SANITIZE_ADDRESS__
-#endif
-
-/* Clang doesn't have a way to turn it off per-function, yet. */
-#ifdef __noretpoline
-#undef __noretpoline
 #endif

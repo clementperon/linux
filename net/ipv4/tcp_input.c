@@ -1975,8 +1975,6 @@ void tcp_enter_loss(struct sock *sk)
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSACKRENEGING);
 		tp->sacked_out = 0;
 		tp->fackets_out = 0;
-		/* Mark SACK reneging until we recover from this loss event. */
-		tp->is_sack_reneg = 1;
 	}
 	tcp_clear_all_retrans_hints(tp);
 
@@ -2474,7 +2472,6 @@ static bool tcp_try_undo_recovery(struct sock *sk)
 		return true;
 	}
 	tcp_set_ca_state(sk, TCP_CA_Open);
-	tp->is_sack_reneg = 0;
 	return false;
 }
 
@@ -2506,10 +2503,8 @@ static bool tcp_try_undo_loss(struct sock *sk, bool frto_undo)
 			NET_INC_STATS(sock_net(sk),
 					LINUX_MIB_TCPSPURIOUSRTOS);
 		inet_csk(sk)->icsk_retransmits = 0;
-		if (frto_undo || tcp_is_sack(tp)) {
+		if (frto_undo || tcp_is_sack(tp))
 			tcp_set_ca_state(sk, TCP_CA_Open);
-			tp->is_sack_reneg = 0;
-		}
 		return true;
 	}
 	return false;
@@ -3612,7 +3607,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	struct tcp_sacktag_state sack_state;
 	struct rate_sample rs = { .prior_delivered = 0 };
 	u32 prior_snd_una = tp->snd_una;
-	bool is_sack_reneg = tp->is_sack_reneg;
 	u32 ack_seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	bool is_dupack = false;
@@ -3736,7 +3730,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		tcp_schedule_loss_probe(sk);
 	delivered = tp->delivered - delivered;	/* freshly ACKed or SACKed */
 	lost = tp->lost - lost;			/* freshly marked lost */
-	tcp_rate_gen(sk, delivered, lost, is_sack_reneg, &now, &rs);
+	tcp_rate_gen(sk, delivered, lost, &now, &rs);
 	tcp_cong_control(sk, ack, delivered, flag, &rs);
 	tcp_xmit_recovery(sk, rexmit);
 	return 1;
@@ -6363,13 +6357,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 			goto drop;
 	}
 
-
-	/* Accept backlog is full. If we have already queued enough
-	 * of warm entries in syn queue, drop request. It is better than
-	 * clogging syn queue with openreqs with exponentially increasing
-	 * timeout.
-	 */
-	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1) {
+	if (sk_acceptq_is_full(sk)) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
 		goto drop;
 	}

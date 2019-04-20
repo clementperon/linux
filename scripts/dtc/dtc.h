@@ -33,6 +33,11 @@
 #include <unistd.h>
 
 #include <libfdt_env.h>
+#include <common.h>
+#include <dictionary.h>
+#include <iniparser.h>
+#include <script.h>
+#include <script_to_dts.h>
 #include <fdt.h>
 
 #include "util.h"
@@ -212,6 +217,8 @@ struct marker *get_marker_label(struct node *tree, const char *label,
 struct node *get_subnode(struct node *node, const char *nodename);
 struct node *get_node_by_path(struct node *tree, const char *path);
 struct node *get_node_by_label(struct node *tree, const char *label);
+struct node *get_node_by_type(struct node *tree, const char *device_type);
+
 struct node *get_node_by_phandle(struct node *tree, cell_t phandle);
 struct node *get_node_by_ref(struct node *tree, const char *ref);
 cell_t get_node_phandle(struct node *root, struct node *node);
@@ -248,6 +255,7 @@ void sort_tree(struct boot_info *bi);
 /* Checks */
 
 void parse_checks_option(bool warn, bool error, const char *arg);
+void dirty_checks(void);
 void process_checks(bool force, struct boot_info *bi);
 
 /* Flattened trees */
@@ -258,7 +266,6 @@ void dt_to_asm(FILE *f, struct boot_info *bi, int version);
 struct boot_info *dt_from_blob(const char *fname);
 
 /* Tree source */
-
 void dt_to_source(FILE *f, struct boot_info *bi);
 struct boot_info *dt_from_source(const char *f);
 
