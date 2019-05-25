@@ -319,6 +319,7 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 static const struct of_device_id sunxi_ir_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-ir", },
 	{ .compatible = "allwinner,sun5i-a13-ir", },
+	{ .compatible = "allwinner,sun6i-a31-ir", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sunxi_ir_match);
