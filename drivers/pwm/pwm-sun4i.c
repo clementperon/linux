@@ -3,6 +3,10 @@
  * Driver for Allwinner sun4i Pulse Width Modulation Controller
  *
  * Copyright (C) 2014 Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *
+ * Limitations:
+ * - When outputing the source clock directly, the PWM logic will be bypassed
+ *   and the currently running period is not guaranteed to be completed
  */
 
 #include <linux/bitops.h>
@@ -73,6 +77,7 @@ static const u32 prescaler_table[] = {
 
 struct sun4i_pwm_data {
 	bool has_prescaler_bypass;
+	bool has_direct_mod_clk_output;
 	unsigned int npwm;
 };
 
@@ -117,6 +122,20 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 	clk_rate = clk_get_rate(sun4i_pwm->clk);
 
 	val = sun4i_pwm_readl(sun4i_pwm, PWM_CTRL_REG);
+
+	/*
+	 * PWM chapter in H6 manual has a diagram which explains that if bypass
+	 * bit is set, no other setting has any meaning. Even more, experiment
+	 * proved that also enable bit is ignored in this case.
+	 */
+	if ((val & BIT_CH(PWM_BYPASS, pwm->hwpwm)) &&
+	    sun4i_pwm->data->has_direct_mod_clk_output) {
+		state->period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, clk_rate);
+		state->duty_cycle = DIV_ROUND_UP_ULL(state->period, 2);
+		state->polarity = PWM_POLARITY_NORMAL;
+		state->enabled = true;
+		return;
+	}
 
 	if ((PWM_REG_PRESCAL(val, pwm->hwpwm) == PWM_PRESCAL_MASK) &&
 	    sun4i_pwm->data->has_prescaler_bypass)
@@ -204,6 +223,7 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct sun4i_pwm_chip *sun4i_pwm = to_sun4i_pwm_chip(chip);
 	struct pwm_state cstate;
 	u32 ctrl;
+	bool bypass = false;
 	int ret;
 	unsigned int delay_us;
 	unsigned long now;
@@ -218,8 +238,23 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		}
 	}
 
+	/*
+	 * Although it would make much more sense to check for bypass in
+	 * sun4i_pwm_calculate(), value of bypass bit also depends on "enabled".
+	 */
+	if (state->enabled) {
+		u32 clk_rate = clk_get_rate(sun4i_pwm->clk);
+		bypass = (state->period * clk_rate >= NSEC_PER_SEC) &&
+			 (state->period * clk_rate < 2 * NSEC_PER_SEC) &&
+			 (state->duty_cycle * clk_rate * 2 >= NSEC_PER_SEC);
+	}
+
 	spin_lock(&sun4i_pwm->ctrl_lock);
 	ctrl = sun4i_pwm_readl(sun4i_pwm, PWM_CTRL_REG);
+
+	/* We can skip calculation and apply parameters */
+	if (bypass && sun4i_pwm->data->has_direct_mod_clk_output)
+		goto bypass_mode;
 
 	if ((cstate.period != state->period) ||
 	    (cstate.duty_cycle != state->duty_cycle)) {
@@ -258,11 +293,20 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		ctrl |= BIT_CH(PWM_ACT_STATE, pwm->hwpwm);
 
 	ctrl |= BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
+
 	if (state->enabled) {
 		ctrl |= BIT_CH(PWM_EN, pwm->hwpwm);
 	} else if (!sun4i_pwm->needs_delay[pwm->hwpwm]) {
 		ctrl &= ~BIT_CH(PWM_EN, pwm->hwpwm);
 		ctrl &= ~BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
+	}
+
+bypass_mode:
+	if (sun4i_pwm->data->has_direct_mod_clk_output) {
+		if (bypass)
+			ctrl |= BIT_CH(PWM_BYPASS, pwm->hwpwm);
+		else
+			ctrl &= ~BIT_CH(PWM_BYPASS, pwm->hwpwm);
 	}
 
 	sun4i_pwm_writel(sun4i_pwm, ctrl, PWM_CTRL_REG);
