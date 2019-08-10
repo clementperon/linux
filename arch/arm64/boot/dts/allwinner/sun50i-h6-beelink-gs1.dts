@@ -57,6 +57,10 @@
 	status = "okay";
 };
 
+&dwc3 {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -256,5 +260,10 @@
 
 &usb2phy {
 	usb0_vbus-supply = <&reg_vcc5v>;
+	status = "okay";
+};
+
+&usb3phy {
+	vbus-supply = <&reg_vcc5v>;
 	status = "okay";
 };
