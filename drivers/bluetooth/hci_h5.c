@@ -1028,6 +1028,7 @@ static struct h5_vnd rtl8723_of_vnd = {
 static const struct of_device_id h5_of_match[] = {
 	{ .compatible = "realtek,rtl8723bs-bt", .data = &rtl8723_of_vnd },
 	{ .compatible = "realtek,rtl8723cs-bt", .data = &rtl8723_of_vnd },
+	{ .compatible = "realtek,rtl8822bs-bt", .data = &rtl8723_of_vnd },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, h5_of_match);
