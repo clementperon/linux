@@ -44,6 +44,18 @@
 		};
 	};
 
+	reg_vcc33_wifi: vcc33-wifi {
+		/* Always on 3.3V regulator for WiFi and BT */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc33-wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_vcc5v>;
+		startup-delay-us = <100000>;
+		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
+		enable-active-high;
+	};
+
 	reg_vcc5v: vcc5v {
 		/* board wide 5V supply directly from the DC jack */
 		compatible = "regulator-fixed";
@@ -71,16 +83,6 @@
 		compatible = "linux,spdif-dit";
 	};
 
-	reg_vcc33_wifi: vcc33-wifi {
-		/* Always on 3.3V regulator for WiFi and BT */
-		compatible = "regulator-fixed";
-		regulator-name = "vcc33-wifi";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		vin-supply = <&reg_vcc5v>;
-	};
-
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rtc 1>;
@@ -103,7 +105,7 @@
 	pinctrl-0 = <&ext_rgmii_pins>;
 	phy-mode = "rgmii";
 	phy-handle = <&ext_rgmii_phy>;
-	phy-supply = <&reg_aldo2>;
+	phy-supply = <&reg_aldo3>;
 	status = "okay";
 };
 
@@ -138,6 +140,13 @@
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
+
+	rtl8822bs: wifi@1 {
+		reg = <1>;
+		interrupt-parent = <&r_pio>;
+		interrupts = <1 0 IRQ_TYPE_LEVEL_LOW>; /* PM0 */
+		interrupt-names = "host-wake";
+	};
 };
 
 &mmc2 {
@@ -154,8 +163,9 @@
 };
 
 &pio {
+	vcc-pc-supply = <&reg_bldo2>;
 	vcc-pd-supply = <&reg_cldo1>;
-	vcc-pg-supply = <&reg_aldo1>;
+	vcc-pg-supply = <&reg_bldo3>;
 };
 
 &r_i2c {
@@ -194,10 +204,9 @@
 			};
 
 			reg_aldo3: aldo3 {
-				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc25-dram";
+				regulator-name = "vcc-gmac";
 			};
 
 			reg_bldo1: bldo1 {
@@ -233,12 +242,14 @@
 			};
 
 			reg_cldo2: cldo2 {
+				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc-wifi-1";
 			};
 
 			reg_cldo3: cldo3 {
+				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc-wifi-2";
