@@ -391,17 +391,22 @@ static int sun8i_h3_thermal_init(struct ths_device *tmdev)
 		     SUN50I_THS_FILTER_EN |
 		     SUN50I_THS_FILTER_TYPE(1));
 	/*
-	 * period = (x + 1) * 4096 / clkin; ~10ms
-	 * enable data interrupt
+	 * clkin = 24MHz
+	 * filter_samples = 4
+	 * period = 0.25s
+	 *
+	 * x = period * clkin / 4096 / filter_samples - 1
+	 *   = 365
 	 */
 	val = GENMASK(7 + tmdev->chip->sensor_num, 8);
 	regmap_write(tmdev->regmap, SUN8I_THS_IC,
-		     SUN50I_H6_THS_PC_TEMP_PERIOD(58) | val);
+		     SUN50I_H6_THS_PC_TEMP_PERIOD(365) | val);
 	/*
+	 * T_acq = 20us
 	 * clkin = 24MHz
-	 * T acquire = clkin / (x + 1)
-	 *           = 20us
-	 * enable sensor
+	 *
+	 * x = T_acq * clkin - 1
+	 *   = 479
 	 */
 	regmap_write(tmdev->regmap, SUN8I_THS_CTRL0,
 		     SUN8I_THS_CTRL0_T_ACQ0(479));
@@ -417,9 +422,11 @@ static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 	int val;
 
 	/*
+	 * T_acq = 20us
 	 * clkin = 24MHz
-	 * T acquire = clkin / (x + 1)
-	 *           = 20us
+	 *
+	 * x = T_acq * clkin - 1
+	 *   = 479
 	 */
 	regmap_write(tmdev->regmap, SUN50I_THS_CTRL0,
 		     SUN50I_THS_CTRL0_T_ACQ(479));
@@ -427,9 +434,16 @@ static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 	regmap_write(tmdev->regmap, SUN50I_H6_THS_MFC,
 		     SUN50I_THS_FILTER_EN |
 		     SUN50I_THS_FILTER_TYPE(1));
-	/* period = (x + 1) * 4096 / clkin; ~10ms */
+	/*
+	 * clkin = 24MHz
+	 * filter_samples = 4
+	 * period = 0.25s
+	 *
+	 * x = period * clkin / 4096 / filter_samples - 1
+	 *   = 365
+	 */
 	regmap_write(tmdev->regmap, SUN50I_H6_THS_PC,
-		     SUN50I_H6_THS_PC_TEMP_PERIOD(58));
+		     SUN50I_H6_THS_PC_TEMP_PERIOD(365));
 	/* enable sensor */
 	val = GENMASK(tmdev->chip->sensor_num - 1, 0);
 	regmap_write(tmdev->regmap, SUN50I_H6_THS_ENABLE, val);
