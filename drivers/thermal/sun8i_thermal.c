@@ -420,6 +420,12 @@ static int sun8i_h3_thermal_init(struct ths_device *tmdev)
 	return 0;
 }
 
+/*
+ * Without this undocummented value, the returned temperatures would
+ * be higher than real ones by about 20°C.
+ */
+#define SUN50I_H6_CTRL0_UNK 0x0000002f
+
 static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 {
 	int val;
@@ -432,7 +438,7 @@ static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 	 *   = 479
 	 */
 	regmap_write(tmdev->regmap, SUN50I_THS_CTRL0,
-		     SUN50I_THS_CTRL0_T_ACQ(479));
+		     SUN50I_H6_CTRL0_UNK | SUN50I_THS_CTRL0_T_ACQ(479));
 	/* average over 4 samples */
 	regmap_write(tmdev->regmap, SUN50I_H6_THS_MFC,
 		     SUN50I_THS_FILTER_EN |
