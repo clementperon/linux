@@ -564,6 +564,15 @@ static const struct ths_thermal_chip sun8i_h3_ths = {
 	// original BSP divs by 8.253 adds 217
 	.scale = 1211,
 	.offset = 217000,
+
+	// datasheet says T = (Tem - 2794)/-14.882
+	//.scale = 672,
+	//.offset = 187743,
+
+	// 4.9 BSP says: T = -0.118 * Tem + 256 = 256 - Tem/8.4746
+	//.scale = 1180,
+	//.offset = 256000 + 15000,
+
 	.temp_data_base = SUN8I_THS_TEMP_DATA,
 	.calibrate = sun8i_h3_ths_calibrate,
 	.init = sun8i_h3_thermal_init,
