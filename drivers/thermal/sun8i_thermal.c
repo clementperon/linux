@@ -361,6 +361,10 @@ static int sun8i_ths_resource_init(struct ths_device *tmdev)
 	if (ret)
 		goto assert_reset;
 
+	ret = clk_set_rate(tmdev->mod_clk, 24000000);
+	if (ret)
+		goto bus_disable;
+
 	ret = clk_prepare_enable(tmdev->mod_clk);
 	if (ret)
 		goto bus_disable;
