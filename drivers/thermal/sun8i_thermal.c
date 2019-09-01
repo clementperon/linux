@@ -442,7 +442,6 @@ static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 
 static int sun8i_ths_register(struct ths_device *tmdev)
 {
-	struct thermal_zone_device *tzd;
 	int i;
 
 	for (i = 0; i < tmdev->chip->sensor_num; i++) {
@@ -454,7 +453,7 @@ static int sun8i_ths_register(struct ths_device *tmdev)
 							     &tmdev->sensor[i],
 							     &ths_ops);
 		if (IS_ERR(tmdev->sensor[i].tzd))
-			return PTR_ERR(tzd);
+			return PTR_ERR(tmdev->sensor[i].tzd);
 	}
 
 	return 0;
