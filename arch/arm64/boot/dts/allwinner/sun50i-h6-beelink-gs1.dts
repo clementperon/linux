@@ -51,13 +51,15 @@
 		regulator-always-on;
 	};
 
+	/* Regulator to supply RTL8822BEH and IOs */
 	reg_vcc33wifi: vcc33wifi {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc33-wifi";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-enable-ramp-delay = <100000>;
 		vin-supply = <&reg_vcc5v>;
-		gpio = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
+		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
 		enable-active-high;
 	};
 
@@ -67,6 +69,16 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&reg_vcc33wifi>;
+	};
+
+	/* Internal RTL8822BEH Wi-Fi regulator */
+	reg_wifien: wifien {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi-en";
+		regulator-enable-ramp-delay = <100000>;
+		vin-supply = <&reg_vcc33wifi>;
+		gpio = <&r_pio 1 3 GPIO_ACTIVE_HIGH>; /* PM3 */
+		enable-active-high;
 	};
 
 	sound-spdif {
@@ -133,7 +145,7 @@
 
 &mmc0 {
 	vmmc-supply = <&reg_cldo1>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
 	bus-width = <4>;
 	status = "okay";
 };
@@ -148,6 +160,14 @@
 };
 
 &ohci0 {
+	status = "okay";
+};
+
+&pcie {
+	vcc-supply = <&reg_bldo2>;
+	vdd-supply = <&reg_dcdcd>;
+	slot-supply = <&reg_wifien>;
+	perst-gpio = <&pio 6 3 GPIO_ACTIVE_LOW>; /* PG3 */
 	status = "okay";
 };
 
