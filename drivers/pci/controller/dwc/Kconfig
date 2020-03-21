@@ -279,4 +279,13 @@ config PCIE_AL
 	  required only for DT-based platforms. ACPI platforms with the
 	  Annapurna Labs PCIe controller don't need to enable this.
 
+config PCIE_SUNXI
+	bool "Allwinner SoCs PCIe controllers"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here it you want PCIe controller support on Allwinner SoCs.
+
 endmenu
