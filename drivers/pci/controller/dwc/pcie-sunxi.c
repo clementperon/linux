@@ -56,6 +56,9 @@
 
 #define to_sunxi_pcie(x)			dev_get_drvdata((x)->dev)
 
+void __iomem *dbi_base;
+//static void __iomem *mem_base_start;
+
 struct sunxi_pcie {
 	struct dw_pcie		*pci;
 	int			link_irq;
@@ -319,7 +322,7 @@ disable_vdd:
 	regulator_disable(pcie->reg_vdd);
 disable_vcc:
 	regulator_disable(pcie->reg_vcc);
-	
+
 	return ret;
 }
 
@@ -431,7 +434,7 @@ static int sunxi_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
-	int pcie_page;
+	int pcie_page, mem_base;
 	unsigned long flags = 0;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
@@ -459,7 +462,9 @@ static int sunxi_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	ret = dw_pcie_read(va_cfg_base + where, size, val);
 	for (i = 0; i < PCIE_BAR_NUM; i++) {
 		pcie_page = readl(pp->va_cfg0_base + PCI_BASE_ADDRESS_0 + i * PCIE_BAR_REG);
-		if (pcie_page & PCIE_MEM_FLAGS)
+		mem_base = readl(pci->dbi_base + PCI_MEMORY_BASE);
+		if (((pcie_page >> MEM_BASE_LEN) & MEM_BASE_MASK)
+				== (mem_base & MEM_BASE_MASK))
 			break;
 	}
 	dw_pcie_writel_dbi(pci, PCIE_ADDR_PAGE_CFG, pcie_page >> 16);
@@ -480,7 +485,7 @@ static int sunxi_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
-	int pcie_page;
+	int pcie_page, mem_base;
 	unsigned long flags = 0;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
@@ -508,7 +513,9 @@ static int sunxi_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	ret = dw_pcie_write(va_cfg_base + where, size, val);
 	for (i = 0; i < PCIE_BAR_NUM; i++) {
 		pcie_page = readl(pp->va_cfg0_base + PCI_BASE_ADDRESS_0 + i * PCIE_BAR_REG);
-		if (pcie_page & PCIE_MEM_FLAGS)
+		mem_base = readl(pci->dbi_base + PCI_MEMORY_BASE);
+		if (((pcie_page >> MEM_BASE_LEN) & MEM_BASE_MASK)
+				== (mem_base & MEM_BASE_MASK))
 			break;
 	}
 	dw_pcie_writel_dbi(pci, PCIE_ADDR_PAGE_CFG, pcie_page >> 16);
@@ -532,6 +539,7 @@ static int sunxi_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
+#if 0
 	dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX0,
 				  PCIE_ATU_TYPE_MEM, pp->mem_base,
 				  pp->mem_bus_addr, pp->mem_size);
@@ -539,6 +547,7 @@ static int sunxi_pcie_host_init(struct pcie_port *pp)
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX2,
 					  PCIE_ATU_TYPE_IO, pp->io_base,
 					  pp->io_bus_addr, pp->io_size);
+#endif
 
 	sunxi_pcie_establish_link(pci);
 	if (IS_ENABLED(CONFIG_PCI_MSI))
@@ -587,6 +596,10 @@ static int sunxi_add_pcie_port(struct sunxi_pcie *pcie,
 		dev_err(&pdev->dev, "failed to initialize host\n");
 		return ret;
 	}
+
+	// Ugly hack
+	dbi_base = pcie->pci->dbi_base;
+	//mem_base_start = pp->va_cfg0_base;
 
 	return 0;
 }

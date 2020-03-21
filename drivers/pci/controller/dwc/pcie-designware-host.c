@@ -21,6 +21,13 @@
 
 static struct pci_ops dw_pcie_ops;
 
+// HACK Allwinner H6
+#define PCIE_MISC_CONTROL_1_CFG			0x8bc
+
+#ifdef CONFIG_PCIE_SUNXI
+extern void __iomem *dbi_base;
+#endif
+
 static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 			       u32 *val)
 {
@@ -388,6 +395,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
+#ifdef CONFIG_PCIE_SUNXI
+	dbi_base = pci->dbi_base;
+#endif
 	pp->mem_base = pp->mem->start;
 
 	if (!pp->va_cfg0_base) {
@@ -698,8 +708,18 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 
 	dw_pcie_wr_own_conf(pp, PCI_BASE_ADDRESS_0, 4, 0);
 
+	/* Hack Allwiner H6 */
+	dw_pcie_rd_own_conf(pp, PCIE_MISC_CONTROL_1_CFG, 4, &val);
+	val |= 0x1;
+	dw_pcie_wr_own_conf(pp, PCIE_MISC_CONTROL_1_CFG, 4, val);
+
 	/* Program correct class for RC */
 	dw_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
+
+	/* Hack Allwiner H6 */
+	dw_pcie_rd_own_conf(pp, PCIE_MISC_CONTROL_1_CFG, 4, &val);
+	val &= ~(0x1<<0);
+	dw_pcie_wr_own_conf(pp, PCIE_MISC_CONTROL_1_CFG, 4, val);
 
 	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
 	val |= PORT_LOGIC_SPEED_CHANGE;

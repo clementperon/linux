@@ -141,6 +141,11 @@
 #define MAX_IATU_IN			256
 #define MAX_IATU_OUT			256
 
+/* HACK H6 */
+#define PCIE_BAR_NUM                    6
+#define MEM_BASE_LEN                    16
+#define MEM_BASE_MASK                   0xffff
+
 struct pcie_port;
 struct dw_pcie;
 struct dw_pcie_ep;
