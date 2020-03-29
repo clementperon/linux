@@ -13,6 +13,8 @@
  *	     Resource sorting
  */
 
+#define DEBUG 1
+
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/pci.h>
