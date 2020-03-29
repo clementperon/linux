@@ -655,10 +655,11 @@
 			status = "disabled";
 		};
 
+		/* On Allwinner H6 PCIe is quirky and needs to be wrapped */
 		pcie: pcie@5400000 {
 			#address-cells = <3>;
 			#size-cells = <2>;
-			compatible = "pine64,allwinner-h6-pcie-wrapped";
+			compatible = "allwinner,sun50i-h6-pcie";
 			reg = <0x05400000 0x4000>,
 			      <0x05410000 0x10000>;
 			reg-names = "dbi", "config";

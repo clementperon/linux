@@ -247,8 +247,8 @@ config PCI_MESON
 	  and therefore the driver re-uses the DesignWare core functions to
 	  implement the driver.
 
-config PCIE_SUNXI_WRAPPED
-	bool "Wrapped Allwinner SoCs PCIe controllers"
+config PCIE_SUNXI
+	bool "Allwinner SoCs PCIe controllers"
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	help

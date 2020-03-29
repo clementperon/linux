@@ -572,7 +572,7 @@ static int sunxi_pcie_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunxi_pcie_of_match[] = {
-	{ .compatible = "pine64,allwinner-h6-pcie-wrapped", },
+	{ .compatible = "allwinner,sun50i-h6-pcie", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sunxi_pcie_of_match);
