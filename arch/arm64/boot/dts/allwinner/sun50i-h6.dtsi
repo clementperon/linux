@@ -905,8 +905,8 @@
 
 	thermal-zones {
 		cpu-thermal {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+			polling-delay-passive = <100>;
+			polling-delay = <1000>;
 			thermal-sensors = <&ths 0>;
 
 			trips {
@@ -935,8 +935,8 @@
 		};
 
 		gpu-thermal {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+			polling-delay-passive = <100>;
+			polling-delay = <1000>;
 			thermal-sensors = <&ths 1>;
 		};
 	};
