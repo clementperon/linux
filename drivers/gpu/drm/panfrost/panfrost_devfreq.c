@@ -78,37 +78,20 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	struct device *dev = &pfdev->pdev->dev;
 	struct devfreq *devfreq;
 	struct thermal_cooling_device *cooling;
-	const char *mali = "mali";
-	struct opp_table *opp_table = NULL;
-
-	/* Regulator is optional */
-	opp_table = dev_pm_opp_set_regulators(dev, &mali, 1);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
-		if (ret != -ENODEV) {
-			DRM_DEV_ERROR(dev, "Failed to set regulator: %d\n", ret);
-			return ret;
-		}
-	}
-	pfdev->devfreq.opp_table = opp_table;
 
 	ret = dev_pm_opp_of_add_table(dev);
-	if (ret) {
-		if (ret == -ENODEV) /* Optional, continue without devfreq */
-			ret = 0;
-		goto err_opp_reg;
-	}
+	if (ret == -ENODEV) /* Optional, continue without devfreq */
+		return 0;
+	else if (ret)
+		return ret;
 
 	panfrost_devfreq_reset(pfdev);
 
 	cur_freq = clk_get_rate(pfdev->clock);
 
 	opp = devfreq_recommended_opp(dev, &cur_freq, 0);
-	if (IS_ERR(opp)) {
-		DRM_DEV_ERROR(dev, "Failed to set recommended OPP\n");
-		ret = PTR_ERR(opp);
-		goto err_opp;
-	}
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
 
 	panfrost_devfreq_profile.initial_freq = cur_freq;
 	dev_pm_opp_put(opp);
@@ -117,8 +100,8 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 					  DEVFREQ_GOV_SIMPLE_ONDEMAND, NULL);
 	if (IS_ERR(devfreq)) {
 		DRM_DEV_ERROR(dev, "Couldn't initialize GPU devfreq\n");
-		ret = PTR_ERR(devfreq);
-		goto err_opp;
+		dev_pm_opp_of_remove_table(dev);
+		return PTR_ERR(devfreq);
 	}
 	pfdev->devfreq.devfreq = devfreq;
 
@@ -129,30 +112,13 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		pfdev->devfreq.cooling = cooling;
 
 	return 0;
-
-err_opp:
-	dev_pm_opp_of_remove_table(dev);
-
-err_opp_reg:
-	if (pfdev->devfreq.opp_table) {
-		dev_pm_opp_put_regulators(pfdev->devfreq.opp_table);
-		pfdev->devfreq.opp_table = NULL;
-	}
-
-	return ret;
 }
 
 void panfrost_devfreq_fini(struct panfrost_device *pfdev)
 {
 	if (pfdev->devfreq.cooling)
 		devfreq_cooling_unregister(pfdev->devfreq.cooling);
-
 	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
-
-	if (pfdev->devfreq.opp_table) {
-		dev_pm_opp_put_regulators(pfdev->devfreq.opp_table);
-		pfdev->devfreq.opp_table = NULL;
-	}
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)
