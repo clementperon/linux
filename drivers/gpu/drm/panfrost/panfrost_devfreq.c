@@ -96,14 +96,18 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	struct thermal_cooling_device *cooling;
 	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
 
-	ret = dev_pm_opp_of_add_table(dev);
-	if (ret == -ENODEV) /* Optional, continue without devfreq */
+	if (!device_property_present(dev, "operating-points-v2"))
+		/* Optional, continue without devfreq */
 		return 0;
-	else if (ret)
-		return ret;
-	pfdevfreq->opp_of_table_added = true;
 
 	spin_lock_init(&pfdevfreq->lock);
+
+	ret = dev_pm_opp_of_add_table(dev);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Couldn't add OPP table\n");
+		goto err_fini;
+	}
+	pfdevfreq->opp_of_table_added = true;
 
 	panfrost_devfreq_reset(pfdevfreq);
 
