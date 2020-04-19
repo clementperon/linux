@@ -218,10 +218,13 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 		goto err_out0;
 	}
 
-	err = panfrost_regulator_init(pfdev);
-	if (err) {
-		dev_err(pfdev->dev, "regulator init failed %d\n", err);
-		goto err_out1;
+	/* OPP will handle regulators */
+	if (!pfdev->pfdevfreq.opp_of_table_added) {
+		err = panfrost_regulator_init(pfdev);
+		if (err) {
+			dev_err(pfdev->dev, "regulator init failed %d\n", err);
+			goto err_out1;
+		}
 	}
 
 	err = panfrost_reset_init(pfdev);
