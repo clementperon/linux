@@ -1104,19 +1104,19 @@
 			};
 
 			cooling-maps {
-				// Fordid the GPU to go over 756MHz
+				// Forbid the GPU to go over 756MHz
 				map0 {
 					trip = <&gpu_alert0>;
 					cooling-device = <&gpu 1 THERMAL_NO_LIMIT>;
 				};
 
-				// Fordid the GPU to go over 624MHz
+				// Forbid the GPU to go over 624MHz
 				map1 {
 					trip = <&gpu_alert1>;
 					cooling-device = <&gpu 2 THERMAL_NO_LIMIT>;
 				};
 
-				// Fordid the GPU to go over 576MHz
+				// Forbid the GPU to go over 576MHz
 				map2 {
 					trip = <&gpu_alert2>;
 					cooling-device = <&gpu 3 THERMAL_NO_LIMIT>;
