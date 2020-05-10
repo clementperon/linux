@@ -145,7 +145,7 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 	u64 jc_head = job->jc;
 	int ret;
 
-	panfrost_devfreq_record_busy(pfdev);
+	panfrost_devfreq_record_busy(&pfdev->pfdevfreq);
 
 	ret = pm_runtime_get_sync(pfdev->dev);
 	if (ret < 0)
@@ -478,7 +478,7 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 				pfdev->jobs[j] = NULL;
 
 				panfrost_mmu_as_put(pfdev, &job->file_priv->mmu);
-				panfrost_devfreq_record_idle(pfdev);
+				panfrost_devfreq_record_idle(&pfdev->pfdevfreq);
 
 				dma_fence_signal_locked(job->done_fence);
 				pm_runtime_put_autosuspend(pfdev->dev);
