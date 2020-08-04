@@ -205,6 +205,14 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 	spin_lock_irqsave(nkmp->common.lock, flags);
 
 	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg &= ~BIT(29);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
+
+	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg &= ~BIT(28);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
+
+	reg = readl(nkmp->common.base + nkmp->common.reg);
 	reg &= ~(n_mask | k_mask | m_mask | p_mask);
 
 	reg |= ((_nkmp.n - nkmp->n.offset) << nkmp->n.shift) & n_mask;
@@ -214,9 +222,25 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	writel(reg, nkmp->common.base + nkmp->common.reg);
 
-	spin_unlock_irqrestore(nkmp->common.lock, flags);
+	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg |= BIT(28);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
+
+	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg |= BIT(29);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
 
 	ccu_helper_wait_for_lock(&nkmp->common, nkmp->lock);
+
+	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg &= ~BIT(29);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
+
+	reg = readl(nkmp->common.base + nkmp->common.reg);
+	reg &= ~BIT(28);
+	writel(reg, nkmp->common.base + nkmp->common.reg);
+
+	spin_unlock_irqrestore(nkmp->common.lock, flags);
 
 	return 0;
 }
