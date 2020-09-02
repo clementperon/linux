@@ -1193,13 +1193,6 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	/* Enable the lock bits on all PLLs */
-	for (i = 0; i < ARRAY_SIZE(pll_regs); i++) {
-		val = readl(reg + pll_regs[i]);
-		val |= BIT(29);
-		writel(val, reg + pll_regs[i]);
-	}
-
 	/*
 	 * Force the output divider of video PLLs to 0.
 	 *
