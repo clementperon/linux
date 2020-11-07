@@ -2340,6 +2340,10 @@ sub process {
 			}
 			$found_file = 1;
 		}
+# donot check markdown
+		if ($realfile =~ /\.md$/) {
+		    next;
+		}
 
 #make up the handle for any error we report on this line
 		if ($showfile) {
@@ -2529,6 +2533,7 @@ sub process {
 # Check for git id commit length and improperly formed commit descriptions
 		if ($in_commit_log && !$commit_log_possible_stack_dump &&
 		    $line !~ /^\s*(?:Link|Patchwork|http|https|BugLink):/i &&
+		    $line !~ /^This reverts commit [0-9a-f]{7,40}/ &&
 		    ($line =~ /\bcommit\s+[0-9a-f]{5,}\b/i ||
 		     ($line =~ /(?:\s|^)[0-9a-f]{12,40}(?:[\s"'\(\[]|$)/i &&
 		      $line !~ /[\<\[][0-9a-f]{12,40}[\>\]]/i &&
@@ -6196,10 +6201,10 @@ sub process {
 		exit(0);
 	}
 
-	if (!$is_patch && $file !~ /cover-letter\.patch$/) {
-		ERROR("NOT_UNIFIED_DIFF",
-		      "Does not appear to be a unified-diff format patch\n");
-	}
+	#if (!$is_patch && $file !~ /cover-letter\.patch$/) {
+	#	ERROR("NOT_UNIFIED_DIFF",
+	#	      "Does not appear to be a unified-diff format patch\n");
+	#}
 	if ($is_patch && $has_commit_log && $chk_signoff && $signoff == 0) {
 		ERROR("MISSING_SIGN_OFF",
 		      "Missing Signed-off-by: line(s)\n");

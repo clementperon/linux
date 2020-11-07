@@ -832,6 +832,14 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-optimus.dtb \
 	sun9i-a80-cubieboard4.dtb
+dtb-$(CONFIG_ARCH_SUN8IW6P1) += \
+	sun8iw6p1-soc.dtb
+dtb-$(CONFIG_ARCH_SUN8IW7P1) += \
+	sun8iw7p1-soc.dtb
+dtb-$(CONFIG_ARCH_SUN8IW11P1) += \
+        sun8iw11p1-soc.dtb
+dtb-$(CONFIG_ARCH_SUN8IW15P1) += \
+	board.dtb
 dtb-$(CONFIG_ARCH_TANGO) += \
 	tango4-vantage-1172.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
@@ -960,5 +968,15 @@ endif
 dtstree		:= $(srctree)/$(src)
 dtb-$(CONFIG_OF_ALL_DTBS) := $(patsubst $(dtstree)/%.dts,%.dtb, $(wildcard $(dtstree)/*.dts))
 
-always		:= $(dtb-y)
+DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE_NAMES))
+ifneq ($(DTB_NAMES),)
+DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
+else
+DTB_LIST := $(dtb-y)
+endif
+
+targets += dtbs dtbs_install
+targets += $(DTB_LIST)
+
+always		:= $(DTB_LIST)
 clean-files	:= *.dtb

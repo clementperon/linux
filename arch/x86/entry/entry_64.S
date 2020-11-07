@@ -91,7 +91,7 @@ ENDPROC(native_usergs_sysret64)
 .endm
 
 .macro TRACE_IRQS_IRETQ_DEBUG
-	btl	$9, EFLAGS(%rsp)		/* interrupts off? */
+	bt	$9, EFLAGS(%rsp)		/* interrupts off? */
 	jnc	1f
 	TRACE_IRQS_ON_DEBUG
 1:
@@ -485,7 +485,7 @@ retint_kernel:
 #ifdef CONFIG_PREEMPT
 	/* Interrupts are off */
 	/* Check if we need preemption */
-	btl	$9, EFLAGS(%rsp)		/* were interrupts off? */
+	bt	$9, EFLAGS(%rsp)		/* were interrupts off? */
 	jnc	1f
 0:	cmpl	$0, PER_CPU_VAR(__preempt_count)
 	jnz	1f
@@ -626,13 +626,8 @@ apicinterrupt3 \num trace(\sym) smp_trace(\sym)
 #endif
 
 /* Make sure APIC interrupt handlers end up in the irqentry section: */
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
-# define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
-# define POP_SECTION_IRQENTRY	.popsection
-#else
-# define PUSH_SECTION_IRQENTRY
-# define POP_SECTION_IRQENTRY
-#endif
+#define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
+#define POP_SECTION_IRQENTRY	.popsection
 
 .macro apicinterrupt num sym do_sym
 PUSH_SECTION_IRQENTRY
@@ -774,7 +769,7 @@ ENTRY(\sym)
 
 	call	\do_sym
 
-	jmp	error_exit
+	jmp	error_exit			/* %ebx: no swapgs flag */
 	.endif
 END(\sym)
 .endm
@@ -1043,6 +1038,7 @@ END(paranoid_exit)
 
 /*
  * Save all registers in pt_regs, and switch gs if needed.
+ * Return: EBX=0: came from user mode; EBX=1: otherwise
  */
 ENTRY(error_entry)
 	cld
@@ -1055,6 +1051,7 @@ ENTRY(error_entry)
 	 * the kernel CR3 here.
 	 */
 	SWITCH_KERNEL_CR3
+	xorl	%ebx, %ebx
 	testb	$3, CS+8(%rsp)
 	jz	.Lerror_kernelspace
 
@@ -1085,6 +1082,7 @@ ENTRY(error_entry)
 	 * for these here too.
 	 */
 .Lerror_kernelspace:
+	incl	%ebx
 	leaq	native_irq_return_iret(%rip), %rcx
 	cmpq	%rcx, RIP+8(%rsp)
 	je	.Lerror_bad_iret
@@ -1116,19 +1114,28 @@ ENTRY(error_entry)
 
 	/*
 	 * Pretend that the exception came from user mode: set up pt_regs
-	 * as if we faulted immediately after IRET.
+	 * as if we faulted immediately after IRET and clear EBX so that
+	 * error_exit knows that we will be returning to user mode.
 	 */
 	mov	%rsp, %rdi
 	call	fixup_bad_iret
 	mov	%rax, %rsp
+	decl	%ebx
 	jmp	.Lerror_entry_from_usermode_after_swapgs
 END(error_entry)
 
+
+/*
+ * On entry, EBX is a "return to kernel mode" flag:
+ *   1: already in kernel mode, don't need SWAPGS
+ *   0: user gsbase is loaded, we need SWAPGS and standard preparation for return to usermode
+ */
 ENTRY(error_exit)
+	movl	%ebx, %eax
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testb	$3, CS(%rsp)
-	jz	retint_kernel
+	testl	%eax, %eax
+	jnz	retint_kernel
 	jmp	retint_user
 END(error_exit)
 

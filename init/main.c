@@ -121,6 +121,7 @@ void (*__initdata late_time_init)(void);
 char __initdata boot_command_line[COMMAND_LINE_SIZE];
 /* Untouched saved command line (eg. for /proc) */
 char *saved_command_line;
+EXPORT_SYMBOL(saved_command_line);
 /* Command line for parameter parsing */
 static char *static_command_line;
 /* Command line for per-initcall parameter parsing */
@@ -553,6 +554,14 @@ asmlinkage __visible void __init start_kernel(void)
 		 "Interrupts were enabled *very* early, fixing it\n"))
 		local_irq_disable();
 	idr_init_cache();
+
+	/*
+	 * Allow workqueue creation and work item queueing/cancelling
+	 * early.  Work item execution depends on kthreads and starts after
+	 * workqueue_init().
+	 */
+	workqueue_init_early();
+
 	rcu_init();
 
 	/* trace_printk() and trace points may be used after this */
@@ -638,9 +647,8 @@ asmlinkage __visible void __init start_kernel(void)
 	security_init();
 	dbg_late_init();
 	vfs_caches_init();
+	pagecache_init();
 	signals_init();
-	/* rootfs populating might need page-writeback */
-	page_writeback_init();
 	proc_root_init();
 	nsfs_init();
 	cpuset_init();
@@ -765,19 +773,32 @@ static int __init_or_module do_one_initcall_debug(initcall_t fn)
 	return ret;
 }
 
+#ifdef CONFIG_SUNXI_BOOTEVENT
+#include "../drivers/misc/sunxi-bootevent/bootevent.h"
+#else
+#define TIME_LOG_START()
+#define TIME_LOG_END()
+#define bootevent_initcall(fn, ts)
+#endif
+
 int __init_or_module do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	int ret;
 	char msgbuf[64];
+#ifdef CONFIG_SUNXI_BOOTEVENT
+	unsigned long long ts = 0;
+#endif
 
 	if (initcall_blacklisted(fn))
 		return -EPERM;
 
+	TIME_LOG_START();
 	if (initcall_debug)
 		ret = do_one_initcall_debug(fn);
 	else
 		ret = fn();
+	TIME_LOG_END();
 
 	msgbuf[0] = 0;
 
@@ -790,6 +811,7 @@ int __init_or_module do_one_initcall(initcall_t fn)
 		local_irq_enable();
 	}
 	WARN(msgbuf[0], "initcall %pF returned with %s\n", fn, msgbuf);
+	bootevent_initcall(fn, ts);
 
 	add_latent_entropy();
 	return ret;
@@ -953,6 +975,10 @@ static int __ref kernel_init(void *unused)
 
 	rcu_end_inkernel_boot();
 
+#ifdef CONFIG_SUNXI_BOOTEVENT
+	log_boot("Kernel_init_done");
+#endif
+
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
@@ -1006,6 +1032,8 @@ static noinline void __init kernel_init_freeable(void)
 	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(setup_max_cpus);
+
+	workqueue_init();
 
 	do_pre_smp_initcalls();
 	lockup_detector_init();

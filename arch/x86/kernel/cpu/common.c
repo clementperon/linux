@@ -61,13 +61,6 @@ cpumask_var_t cpu_callin_mask;
 /* representing cpus for which sibling maps can be computed */
 cpumask_var_t cpu_sibling_setup_mask;
 
-/* Number of siblings per CPU package */
-int smp_num_siblings = 1;
-EXPORT_SYMBOL(smp_num_siblings);
-
-/* Last level cache ID of each logical CPU */
-DEFINE_PER_CPU_READ_MOSTLY(u16, cpu_llc_id) = BAD_APICID;
-
 /* correctly size the local cpu masks */
 void __init setup_cpu_local_masks(void)
 {
@@ -613,36 +606,32 @@ static void cpu_detect_tlb(struct cpuinfo_x86 *c)
 		tlb_lld_4m[ENTRIES], tlb_lld_1g[ENTRIES]);
 }
 
-int detect_ht_early(struct cpuinfo_x86 *c)
+void detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 eax, ebx, ecx, edx;
+	int index_msb, core_bits;
 
 	if (!cpu_has(c, X86_FEATURE_HT))
-		return -1;
+		return;
 
 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
-		return -1;
+		return;
 
 	if (cpu_has(c, X86_FEATURE_XTOPOLOGY))
-		return -1;
+		return;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
-	if (smp_num_siblings == 1)
+
+	if (!smp_num_siblings)
+		smp_num_siblings = 1;
+
+	if (smp_num_siblings == 1) {
 		pr_info_once("CPU0: Hyper-Threading is disabled\n");
-#endif
-	return 0;
-}
-
-void detect_ht(struct cpuinfo_x86 *c)
-{
-#ifdef CONFIG_SMP
-	int index_msb, core_bits;
-
-	if (detect_ht_early(c) < 0)
 		return;
+	}
 
 	index_msb = get_count_order(smp_num_siblings);
 	c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid, index_msb);
@@ -719,41 +708,6 @@ static void apply_forced_caps(struct cpuinfo_x86 *c)
 	}
 }
 
-static void init_speculation_control(struct cpuinfo_x86 *c)
-{
-	/*
-	 * The Intel SPEC_CTRL CPUID bit implies IBRS and IBPB support,
-	 * and they also have a different bit for STIBP support. Also,
-	 * a hypervisor might have set the individual AMD bits even on
-	 * Intel CPUs, for finer-grained selection of what's available.
-	 */
-	if (cpu_has(c, X86_FEATURE_SPEC_CTRL)) {
-		set_cpu_cap(c, X86_FEATURE_IBRS);
-		set_cpu_cap(c, X86_FEATURE_IBPB);
-		set_cpu_cap(c, X86_FEATURE_MSR_SPEC_CTRL);
-	}
-
-	if (cpu_has(c, X86_FEATURE_INTEL_STIBP))
-		set_cpu_cap(c, X86_FEATURE_STIBP);
-
-	if (cpu_has(c, X86_FEATURE_SPEC_CTRL_SSBD) ||
-	    cpu_has(c, X86_FEATURE_VIRT_SSBD))
-		set_cpu_cap(c, X86_FEATURE_SSBD);
-
-	if (cpu_has(c, X86_FEATURE_AMD_IBRS)) {
-		set_cpu_cap(c, X86_FEATURE_IBRS);
-		set_cpu_cap(c, X86_FEATURE_MSR_SPEC_CTRL);
-	}
-
-	if (cpu_has(c, X86_FEATURE_AMD_IBPB))
-		set_cpu_cap(c, X86_FEATURE_IBPB);
-
-	if (cpu_has(c, X86_FEATURE_AMD_STIBP)) {
-		set_cpu_cap(c, X86_FEATURE_STIBP);
-		set_cpu_cap(c, X86_FEATURE_MSR_SPEC_CTRL);
-	}
-}
-
 void get_cpu_cap(struct cpuinfo_x86 *c)
 {
 	u32 eax, ebx, ecx, edx;
@@ -775,7 +729,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
 		c->x86_capability[CPUID_7_ECX] = ecx;
-		c->x86_capability[CPUID_7_EDX] = edx;
 	}
 
 	/* Extended state features: level 0x0000000d */
@@ -848,14 +801,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_8000_000A_EDX] = cpuid_edx(0x8000000a);
 
 	init_scattered_cpuid_features(c);
-	init_speculation_control(c);
-
-	/*
-	 * Clear/Set all flags overridden by options, after probe.
-	 * This needs to happen each time we re-probe, which may happen
-	 * several times during CPU initialization.
-	 */
-	apply_forced_caps(c);
 }
 
 static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
@@ -882,7 +827,6 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 			}
 		}
 #endif
-	c->x86_cache_bits = c->x86_phys_bits;
 }
 
 static const __initconst struct x86_cpu_id cpu_no_speculation[] = {
@@ -919,10 +863,6 @@ static const __initconst struct x86_cpu_id cpu_no_spec_store_bypass[] = {
 	{ X86_VENDOR_CENTAUR,	5,					},
 	{ X86_VENDOR_INTEL,	5,					},
 	{ X86_VENDOR_NSC,	5,					},
-	{ X86_VENDOR_AMD,	0x12,					},
-	{ X86_VENDOR_AMD,	0x11,					},
-	{ X86_VENDOR_AMD,	0x10,					},
-	{ X86_VENDOR_AMD,	0xf,					},
 	{ X86_VENDOR_ANY,	4,					},
 	{}
 };
@@ -946,11 +886,7 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 {
 	u64 ia32_cap = 0;
 
-	if (cpu_has(c, X86_FEATURE_ARCH_CAPABILITIES))
-		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, ia32_cap);
-
-	if (!x86_match_cpu(cpu_no_spec_store_bypass) &&
-	   !(ia32_cap & ARCH_CAP_SSB_NO))
+	if (!x86_match_cpu(cpu_no_spec_store_bypass))
 		setup_force_cpu_bug(X86_BUG_SPEC_STORE_BYPASS);
 
 	if (x86_match_cpu(cpu_no_speculation))
@@ -959,11 +895,11 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
 	setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
 
-	if (ia32_cap & ARCH_CAP_IBRS_ALL)
-		setup_force_cpu_cap(X86_FEATURE_IBRS_ENHANCED);
-
 	if (x86_match_cpu(cpu_no_meltdown))
 		return;
+
+	if (cpu_has(c, X86_FEATURE_ARCH_CAPABILITIES))
+		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, ia32_cap);
 
 	/* Rogue Data Cache Load? No! */
 	if (ia32_cap & ARCH_CAP_RDCL_NO)
@@ -1391,7 +1327,6 @@ void identify_secondary_cpu(struct cpuinfo_x86 *c)
 #endif
 	mtrr_ap_init();
 	validate_apic_and_package_id(c);
-	x86_spec_ctrl_setup_ap();
 }
 
 struct msr_range {
