@@ -59,6 +59,28 @@
 		regulator-always-on;
 	};
 
+	/* Regulator to supply RTL8822BEH and IOs */
+	reg_vcc33wifi: vcc33wifi {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc33-wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-enable-ramp-delay = <100000>;
+		vin-supply = <&reg_vcc5v>;
+		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
+		enable-active-high;
+	};
+
+	/* Commutator for Wifi IO, ON/OFF PIN pulled-up with vcc33-wifi */
+	reg_vccwifiio: vccwifiio {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-wifi-io";
+		regulator-enable-ramp-delay = <1000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_vcc33wifi>;
+	};
+
 	sound-spdif {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "sun50i-h6-spdif";
@@ -75,6 +97,13 @@
 	spdif_out: spdif-out {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 1 3 GPIO_ACTIVE_HIGH>; /* PM3 */
+		clocks = <&rtc 1>;
+		clock-names = "ext_clock";
 	};
 };
 
@@ -148,6 +177,7 @@
 &pio {
 	vcc-pc-supply = <&reg_bldo2>;
 	vcc-pd-supply = <&reg_cldo1>;
+	vcc-pg-supply = <&reg_vccwifiio>;
 };
 
 &r_i2c {
@@ -279,6 +309,7 @@
 	 *
 	 * vcc-pl-supply = <&reg_aldo1>;
 	 */
+	vcc-pm-supply = <&reg_vccwifiio>;
 };
 
 &rtc {
