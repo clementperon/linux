@@ -34,7 +34,7 @@
  */
 #define SUN50I_H6_PLL_CPUX_REG		0x000
 static struct ccu_mult pll_cpux_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.mult		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.common		= {
@@ -48,7 +48,7 @@ static struct ccu_mult pll_cpux_clk = {
 /* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
 #define SUN50I_H6_PLL_DDR0_REG		0x010
 static struct ccu_nkmp pll_ddr0_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -63,7 +63,7 @@ static struct ccu_nkmp pll_ddr0_clk = {
 
 #define SUN50I_H6_PLL_PERIPH0_REG	0x020
 static struct ccu_nkmp pll_periph0_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -80,7 +80,7 @@ static struct ccu_nkmp pll_periph0_clk = {
 
 #define SUN50I_H6_PLL_PERIPH1_REG	0x028
 static struct ccu_nkmp pll_periph1_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -97,7 +97,7 @@ static struct ccu_nkmp pll_periph1_clk = {
 
 #define SUN50I_H6_PLL_GPU_REG		0x030
 static struct ccu_nkmp pll_gpu_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -116,7 +116,7 @@ static struct ccu_nkmp pll_gpu_clk = {
  */
 #define SUN50I_H6_PLL_VIDEO0_REG	0x040
 static struct ccu_nm pll_video0_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -134,7 +134,7 @@ static struct ccu_nm pll_video0_clk = {
 
 #define SUN50I_H6_PLL_VIDEO1_REG	0x048
 static struct ccu_nm pll_video1_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -152,7 +152,7 @@ static struct ccu_nm pll_video1_clk = {
 
 #define SUN50I_H6_PLL_VE_REG		0x058
 static struct ccu_nkmp pll_ve_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -167,7 +167,7 @@ static struct ccu_nkmp pll_ve_clk = {
 
 #define SUN50I_H6_PLL_DE_REG		0x060
 static struct ccu_nkmp pll_de_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -182,7 +182,7 @@ static struct ccu_nkmp pll_de_clk = {
 
 #define SUN50I_H6_PLL_HSIC_REG		0x070
 static struct ccu_nkmp pll_hsic_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -210,7 +210,7 @@ static struct ccu_sdm_setting pll_audio_sdm_table[] = {
 };
 
 static struct ccu_nm pll_audio_base_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
@@ -506,7 +506,7 @@ static SUNXI_CCU_GATE(bus_ths_clk, "bus-ths", "apb1", 0x9fc, BIT(0), 0);
 
 static const char * const audio_parents[] = { "pll-audio", "pll-audio-2x", "pll-audio-4x" };
 static struct ccu_div i2s3_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -519,7 +519,7 @@ static struct ccu_div i2s3_clk = {
 };
 
 static struct ccu_div i2s0_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -532,7 +532,7 @@ static struct ccu_div i2s0_clk = {
 };
 
 static struct ccu_div i2s1_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -545,7 +545,7 @@ static struct ccu_div i2s1_clk = {
 };
 
 static struct ccu_div i2s2_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -563,7 +563,7 @@ static SUNXI_CCU_GATE(bus_i2s2_clk, "bus-i2s2", "apb1", 0xa1c, BIT(2), 0);
 static SUNXI_CCU_GATE(bus_i2s3_clk, "bus-i2s3", "apb1", 0xa1c, BIT(3), 0);
 
 static struct ccu_div spdif_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -578,7 +578,7 @@ static struct ccu_div spdif_clk = {
 static SUNXI_CCU_GATE(bus_spdif_clk, "bus-spdif", "apb1", 0xa2c, BIT(0), 0);
 
 static struct ccu_div dmic_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -593,7 +593,7 @@ static struct ccu_div dmic_clk = {
 static SUNXI_CCU_GATE(bus_dmic_clk, "bus-dmic", "apb1", 0xa4c, BIT(0), 0);
 
 static struct ccu_div audio_hub_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 	.div		= _SUNXI_CCU_DIV_FLAGS(8, 2, CLK_DIVIDER_POWER_OF_TWO),
 	.mux		= _SUNXI_CCU_MUX(24, 2),
 	.common		= {
@@ -670,7 +670,7 @@ static const struct ccu_mux_fixed_prediv hdmi_cec_predivs[] = {
 
 #define SUN50I_H6_HDMI_CEC_CLK_REG		0xb10
 static struct ccu_mux hdmi_cec_clk = {
-	.enable		= BIT(31),
+	.enable		= BIT(27),
 
 	.mux		= {
 		.shift	= 24,
@@ -1193,10 +1193,17 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	/* Enable the lock bits on all PLLs */
+	/*
+	 * Enable lock and enable bits on all PLLs.
+	 *
+	 * Due to the current design, multiple PLLs share one power switch,
+	 * so switching PLL is easy to cause stability problems.
+	 * When initializing, we enable them by default. When disable,
+	 * we only turn off the output of PLL.
+	 */
 	for (i = 0; i < ARRAY_SIZE(pll_regs); i++) {
 		val = readl(reg + pll_regs[i]);
-		val |= BIT(29);
+		val |= BIT(29) | BIT(31);
 		writel(val, reg + pll_regs[i]);
 	}
 
