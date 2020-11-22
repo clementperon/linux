@@ -1240,6 +1240,15 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	val |= BIT(24);
 	writel(val, reg + SUN50I_H6_HDMI_CEC_CLK_REG);
 
+	/*
+	 * Enforce n = 62 m = 1 p = 0 for GPU PLL = 756MHz
+	 */
+
+	val = readl(reg + SUN50I_H6_PLL_GPU_REG);
+	val &= ~(GENMASK(8, 8) | BIT(1) | BIT(0));
+	val |= (62 << 8) | BIT(1);
+	writel(val, reg + SUN50I_H6_PLL_GPU_REG);
+
 	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun50i_h6_ccu_desc);
 }
 
