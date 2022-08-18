@@ -839,6 +839,7 @@ static void local_cpu_stop(void)
 
 	local_daif_mask();
 	sdei_mask_local_cpu();
+	flush_cache_all();
 	cpu_park_loop();
 }
 
@@ -901,7 +902,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CPU_STOP:
-		trace_android_vh_ipi_stop(regs);
+		trace_android_vh_ipi_stop_rcuidle(regs);
 		irq_enter();
 		local_cpu_stop();
 		irq_exit();

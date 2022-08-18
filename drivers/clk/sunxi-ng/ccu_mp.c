@@ -10,7 +10,10 @@
 #include "ccu_gate.h"
 #include "ccu_mp.h"
 
-static void ccu_mp_find_best(unsigned long parent, unsigned long rate,
+#define INDEX_MODE  1
+#define NORMAL_MODE 2
+
+static void ccu_mp_find_best(int mode, unsigned long parent, unsigned long rate,
 			     unsigned int max_m, unsigned int max_p,
 			     unsigned int *m, unsigned int *p)
 {
@@ -18,19 +21,41 @@ static void ccu_mp_find_best(unsigned long parent, unsigned long rate,
 	unsigned int best_m = 0, best_p = 0;
 	unsigned int _m, _p;
 
-	for (_p = 1; _p <= max_p; _p <<= 1) {
-		for (_m = 1; _m <= max_m; _m++) {
-			unsigned long tmp_rate = parent / _p / _m;
+	if (mode == INDEX_MODE) {
+		for (_p = 1; _p <= max_p; _p <<= 1) {
+			for (_m = 1; _m <= max_m; _m++) {
+				unsigned long tmp_rate = parent / _p / _m;
 
-			if (tmp_rate > rate)
-				continue;
+				if (tmp_rate > rate)
+					continue;
 
-			if ((rate - tmp_rate) < (rate - best_rate)) {
-				best_rate = tmp_rate;
-				best_m = _m;
-				best_p = _p;
+				if ((rate - tmp_rate) < (rate - best_rate)) {
+					best_rate = tmp_rate;
+					best_m = _m;
+					best_p = _p;
+				}
 			}
 		}
+	} else if (mode == NORMAL_MODE) {
+		for (_p = 1; _p <= max_p; _p++) {
+			for (_m = 1; _m <= max_m; _m++) {
+				unsigned long tmp_rate = parent / _p / _m;
+
+				if (tmp_rate > rate)
+					continue;
+
+				if ((rate - tmp_rate) < (rate - best_rate)) {
+					best_rate = tmp_rate;
+					best_m = _m;
+					best_p = _p;
+				}
+			}
+		}
+
+	} else {
+		pr_err("No such a mode, ccu find best fail!\n");
+		best_m = 1;
+		best_p = 1;
 	}
 
 	*m = best_m;
@@ -106,10 +131,20 @@ static unsigned long ccu_mp_round_rate(struct ccu_mux_internal *mux,
 		rate *= cmp->fixed_post_div;
 
 	max_m = cmp->m.max ?: 1 << cmp->m.width;
-	max_p = cmp->p.max ?: 1 << ((1 << cmp->p.width) - 1);
+	if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE))
+		max_p = cmp->p.max ?: 1 << cmp->p.width;
+	else
+		max_p = cmp->p.max ?: 1 << ((1 << cmp->p.width) - 1);
+	/*
+	 * When mp-clk use the clk_round_rate, the clk shouldn't recal
+	 * parent's rate unless this clk set CLK_SET_RATE_PARENT flag.
+	 */
+	if (!(clk_hw_get_flags(&cmp->common.hw) & CLK_SET_RATE_PARENT)) {
+		if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE))
+			ccu_mp_find_best(NORMAL_MODE, *parent_rate, rate, max_m, max_p, &m, &p);
+		else
+			ccu_mp_find_best(INDEX_MODE, *parent_rate, rate, max_m, max_p, &m, &p);
 
-	if (!(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)) {
-		ccu_mp_find_best(*parent_rate, rate, max_m, max_p, &m, &p);
 		rate = *parent_rate / p / m;
 	} else {
 		rate = ccu_mp_find_best_with_parent_adj(hw, parent_rate, rate,
@@ -166,7 +201,14 @@ static unsigned long ccu_mp_recalc_rate(struct clk_hw *hw,
 	p = reg >> cmp->p.shift;
 	p &= (1 << cmp->p.width) - 1;
 
-	rate = (parent_rate >> p) / m;
+	if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE)) {
+		p += cmp->p.offset;
+		if (!p)
+			p++;
+		rate = (parent_rate / p) / m;
+	} else {
+		rate = (parent_rate >> p) / m;
+	}
 	if (cmp->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate /= cmp->fixed_post_div;
 
@@ -196,13 +238,21 @@ static int ccu_mp_set_rate(struct clk_hw *hw, unsigned long rate,
 						  parent_rate);
 
 	max_m = cmp->m.max ?: 1 << cmp->m.width;
-	max_p = cmp->p.max ?: 1 << ((1 << cmp->p.width) - 1);
+
+	if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE))
+		max_p = cmp->p.max ?: 1 << cmp->p.width;
+	else
+		max_p = cmp->p.max ?: 1 << ((1 << cmp->p.width) - 1);
+
 
 	/* Adjust target rate according to post-dividers */
 	if (cmp->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate = rate * cmp->fixed_post_div;
 
-	ccu_mp_find_best(parent_rate, rate, max_m, max_p, &m, &p);
+	if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE))
+		ccu_mp_find_best(NORMAL_MODE, parent_rate, rate, max_m, max_p, &m, &p);
+	else
+		ccu_mp_find_best(INDEX_MODE, parent_rate, rate, max_m, max_p, &m, &p);
 
 	spin_lock_irqsave(cmp->common.lock, flags);
 
@@ -210,7 +260,11 @@ static int ccu_mp_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg &= ~GENMASK(cmp->m.width + cmp->m.shift - 1, cmp->m.shift);
 	reg &= ~GENMASK(cmp->p.width + cmp->p.shift - 1, cmp->p.shift);
 	reg |= (m - cmp->m.offset) << cmp->m.shift;
-	reg |= ilog2(p) << cmp->p.shift;
+
+	if (unlikely(cmp->common.features & CCU_FEATURE_MP_NO_INDEX_MODE))
+		reg |= (p - cmp->p.offset) << cmp->p.shift;
+	else
+		reg |= ilog2(p) << cmp->p.shift;
 
 	writel(reg, cmp->common.base + cmp->common.reg);
 
@@ -245,6 +299,7 @@ const struct clk_ops ccu_mp_ops = {
 	.recalc_rate	= ccu_mp_recalc_rate,
 	.set_rate	= ccu_mp_set_rate,
 };
+EXPORT_SYMBOL_GPL(ccu_mp_ops);
 
 /*
  * Support for MMC timing mode switching

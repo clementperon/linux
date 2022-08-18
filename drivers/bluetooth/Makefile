@@ -34,6 +34,10 @@ obj-$(CONFIG_BT_HCIRSI)		+= btrsi.o
 btmrvl-y			:= btmrvl_main.o
 btmrvl-$(CONFIG_DEBUG_FS)	+= btmrvl_debugfs.o
 
+obj-$(CONFIG_BCM_BT_LPM)    += bcm_btlpm.o
+obj-$(CONFIG_RTL_BT_LPM)    += rtl_btlpm.o
+obj-$(CONFIG_XR_BT_LPM)     += xradio_btlpm.o
+
 hci_uart-y				:= hci_ldisc.o
 hci_uart-$(CONFIG_BT_HCIUART_SERDEV)	+= hci_serdev.o
 hci_uart-$(CONFIG_BT_HCIUART_H4)	+= hci_h4.o
@@ -47,3 +51,6 @@ hci_uart-$(CONFIG_BT_HCIUART_QCA)	+= hci_qca.o
 hci_uart-$(CONFIG_BT_HCIUART_AG6XX)	+= hci_ag6xx.o
 hci_uart-$(CONFIG_BT_HCIUART_MRVL)	+= hci_mrvl.o
 hci_uart-objs				:= $(hci_uart-y)
+
+hci_uart-y += rtk_coex.o
+hci_uart-$(CONFIG_BT_HCIUART_RTL3WIRE) += hci_rtk_h5.o

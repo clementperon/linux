@@ -1488,4 +1488,26 @@ config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
 	depends on I2C
 
+# Sunxi
+config SND_SOC_AC107
+	tristate "Sunxi AC107 Codec"
+	depends on I2C
+	default n
+	help
+	  say Y or M if you want to add support for AC107.
+
+config SND_SOC_AC108
+	tristate "Sunxi AC108 Codec"
+	depends on I2C
+	default n
+	help
+	  say Y or M if you want to add support for AC108.
+
+config SND_SOC_TD100
+	tristate "Sunxi TD100 Codec"
+	depends on I2C
+	default n
+	help
+	  say Y or M if you want to add support for TD100.
+
 endmenu
